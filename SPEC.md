@@ -265,3 +265,4 @@ detonated one on red, mistaken flags X'd, and a dead face.
 1. A runnable program that launches a playable window.
 2. Clear instructions to build/run it.
 3. (Recommended) An automated test suite covering the §9 logic cases.
+4. (Optional) An app icon that reflects the Windows 95 aesthetic.

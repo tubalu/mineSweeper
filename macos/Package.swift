@@ -13,5 +13,7 @@ let package = Package(
         .executableTarget(name: "MinesweeperTests", dependencies: ["MinesweeperCore"]),
         // Offscreen PNG dump for visual verification without a window.
         .executableTarget(name: "MinesweeperPreview", dependencies: ["MinesweeperCore"]),
+        // Renders the app icon at all macOS sizes into an .iconset.
+        .executableTarget(name: "MinesweeperIcon", dependencies: ["MinesweeperCore"]),
     ]
 )

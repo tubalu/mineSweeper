@@ -1,5 +1,5 @@
-# Virtual environment
-.venv/
+# Virtual environment (also matches a worktree-local symlink)
+.venv
 
 # Python caches
 __pycache__/

@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import MinesweeperCore
 
 // Lightweight assertion runner (XCTest needs Xcode; this runs under CLT-only).
@@ -126,6 +127,80 @@ do {
     let mineTotal = (0 ..< 3).reduce(0) { acc, r in acc + (0 ..< 3).filter { b.isMine[r][$0] }.count }
     check(!b.gameOver && !b.win && b.detonated == nil && fresh, "reset restores a fresh board")
     check(mineTotal == b.mineCount, "reset re-seeds the right number of mines")
+}
+
+// ---------------------------------------------------------------------------
+// IconArt rendering tests
+// ---------------------------------------------------------------------------
+// Helper: render IconArt into an offscreen bitmap at the given size.
+// Uses the shared exact-pixel renderer (NSImage.lockFocus would yield 2x
+// output on Retina, so 1 pt != 1 px and pixel sampling would be off-center).
+
+func renderIconArt(size: CGFloat) -> NSBitmapImageRep {
+    IconArt.renderBitmap(pixels: Int(size))
+}
+
+// Helper: brightness in [0, 1] from an NSColor (device-space approximation).
+func brightness(of color: NSColor) -> CGFloat {
+    guard let c = color.usingColorSpace(.deviceRGB) else { return 0 }
+    return (c.redComponent + c.greenComponent + c.blueComponent) / 3.0
+}
+
+// 1. NON-BLANK: rendering at size 64 produces at least two distinct pixel
+//    colors — proves something was drawn, not just a blank canvas.
+do {
+    let bmp = renderIconArt(size: 64)
+    let mid = Int(64 / 2)
+    // Sample top-left corner vs center; they must differ if anything was drawn.
+    let corner = bmp.colorAt(x: 2, y: 2)!
+    let center = bmp.colorAt(x: mid, y: mid)!
+    let cornerBrightness = brightness(of: corner)
+    let centerBrightness = brightness(of: center)
+    check(abs(cornerBrightness - centerBrightness) > 0.05,
+          "icon draw(size:64) is non-blank: corner and center differ in brightness")
+}
+
+// 2. DARK CENTER: pixels near the center of the 64-pt icon are dark (mine is
+//    black). Check a 3-pixel cluster around the exact center; all must be
+//    below 0.35 brightness (dark, but not necessarily pure black, due to
+//    anti-aliasing).
+do {
+    let bmp = renderIconArt(size: 64)
+    let mid = Int(64 / 2)
+    let offsets = [0, 1, -1]
+    let allDark = offsets.allSatisfy { dx in
+        offsets.allSatisfy { dy in
+            guard let c = bmp.colorAt(x: mid + dx, y: mid + dy) else { return false }
+            return brightness(of: c) < 0.35
+        }
+    }
+    check(allDark, "icon draw(size:64) center pixels are dark (mine is black)")
+}
+
+// 3. GRAY CORNER: the top-left corner pixel is approximately Win95 face gray
+//    (192/255 ≈ 0.753). Allow a tolerance of ±20 per channel (~0.078 in [0,1]).
+do {
+    let bmp = renderIconArt(size: 64)
+    let corner = bmp.colorAt(x: 2, y: 2)!
+    let c = corner.usingColorSpace(.deviceRGB)
+    let target: CGFloat = 192.0 / 255.0   // ~0.753
+    let tol:    CGFloat = 20.0  / 255.0   // ~0.078
+    let isGray: Bool = {
+        guard let c else { return false }
+        let rOk = abs(c.redComponent   - target) <= tol
+        let gOk = abs(c.greenComponent - target) <= tol
+        let bOk = abs(c.blueComponent  - target) <= tol
+        return rOk && gOk && bOk
+    }()
+    check(isGray,
+          "icon draw(size:64) corner pixel is Win95 face gray (~192,192,192) within ±20")
+}
+
+// 4. SMALL SIZE: draw(size:16) must complete without crashing. If we reach
+//    the check line the call did not crash.
+do {
+    let _ = renderIconArt(size: 16)
+    check(true, "icon draw(size:16) completes without crashing (small-size path)")
 }
 
 print(failures == 0 ? "\nAll tests passed" : "\n\(failures) test(s) FAILED")
