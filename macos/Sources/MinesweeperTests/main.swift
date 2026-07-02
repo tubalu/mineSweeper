@@ -124,9 +124,14 @@ do {
     b.reveal(0, 0)        // lose
     b.reset()
     let fresh = (0 ..< 3).allSatisfy { r in (0 ..< 3).allSatisfy { b.state[r][$0] == .covered } }
-    let mineTotal = (0 ..< 3).reduce(0) { acc, r in acc + (0 ..< 3).filter { b.isMine[r][$0] }.count }
     check(!b.gameOver && !b.win && b.detonated == nil && fresh, "reset restores a fresh board")
-    check(mineTotal == b.mineCount, "reset re-seeds the right number of mines")
+    // Mines are deferred until the first reveal (first-click safety), so
+    // immediately after reset() none are placed yet.
+    let mineTotalBeforeReveal = (0 ..< 3).reduce(0) { acc, r in acc + (0 ..< 3).filter { b.isMine[r][$0] }.count }
+    check(mineTotalBeforeReveal == 0, "reset defers mine placement until the first reveal")
+    b.reveal(2, 2)
+    let mineTotalAfterReveal = (0 ..< 3).reduce(0) { acc, r in acc + (0 ..< 3).filter { b.isMine[r][$0] }.count }
+    check(mineTotalAfterReveal == b.mineCount, "first reveal after reset re-seeds the right number of mines")
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +207,16 @@ do {
     let _ = renderIconArt(size: 16)
     check(true, "icon draw(size:16) completes without crashing (small-size path)")
 }
+
+// ---------------------------------------------------------------------------
+// Nightmare-mode feature tests (currently RED -- production code not yet
+// implemented). See BoardFirstClickSafetyTests.swift, NightmareSizingTests.swift,
+// DifficultyResolveTests.swift, LayoutCellRangeTests.swift.
+// ---------------------------------------------------------------------------
+runBoardFirstClickSafetyTests()
+runNightmareSizingTests()
+runDifficultyResolveTests()
+runLayoutCellRangeTests()
 
 print(failures == 0 ? "\nAll tests passed" : "\n\(failures) test(s) FAILED")
 exit(failures == 0 ? 0 : 1)

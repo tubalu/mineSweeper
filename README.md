@@ -44,8 +44,9 @@ make icon
 
 ### Gameplay
 - **Classic Minesweeper rules:** random mine placement, adjacent mine counts, cascade reveals, flagging, chording, win/loss detection
-- **Difficulty presets:** Beginner (9×9 / 10 mines), Intermediate (16×16 / 40 mines), Expert (16×30 / 99 mines)
-- **Controls:** left-click to reveal, right-click to flag, middle-click or left+right to chord, press `R` or click smiley to restart, `Q` to quit
+- **Difficulty presets:** Beginner (9×9 / 10 mines), Intermediate (16×16 / 40 mines), Expert (16×30 / 99 mines), and Nightmare (screen-filling fullscreen, ~20.6% mine density; **Swift/AppKit macOS build only**)
+- **Controls:** left-click to reveal, right-click to flag, middle-click or left+right to chord, press `R` or click smiley to restart, `Q` to quit; press `4` to enter Nightmare mode (macOS Swift build only), Esc to exit
+- **First-click safety** (macOS Swift build only): mines are placed after your first click, ensuring the first click never loses
 
 ### Visual Style (Win95)
 - **3-D beveled gray buttons** with highlight/shadow edges

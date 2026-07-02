@@ -27,8 +27,9 @@ clickable smiley reset button, and an elapsed-time counter.
 visual style, restart, and difficulty presets.
 
 **Out of scope (do NOT implement):** networking, accounts, high-score
-persistence, sound, animations beyond the button press effect, custom board
-dimensions UI, themes/skins.
+persistence, sound, animations beyond the button press effect, user-entered
+custom board dimensions UI, themes/skins. (Nightmare's screen-derived sizing,
+§6, is not user-entered and is in scope.)
 
 ---
 
@@ -176,9 +177,19 @@ window to fit):
 | Beginner | 9 × 9 | 10 |
 | Intermediate | 16 × 16 | 40 |
 | Expert | 16 × 30 | 99 |
+| Nightmare | screen-derived | ~20.6% density |
+
+**Nightmare** (macOS/Swift build only) enters native fullscreen and sizes the
+board to fill the active display at the same fixed cell size as every other
+preset (cells are never scaled — the grid grows instead). Dimensions are
+computed from the screen size at selection time: `cols = (screenWidth −
+2·border) / cell`, `rows = (screenHeight − header − 3·border) / cell`, `mines
+= round(0.206 · rows · cols)` clamped to 999 (the LED display is 3 digits).
+Exiting fullscreen (Esc or the window's fullscreen control) returns to the
+difficulty that was active before Nightmare was selected.
 
 If the platform has a native menu/command system, expose: **New Game**, the
-three **Difficulty** presets, and **Quit**. The default difficulty is Beginner.
+**Difficulty** presets, and **Quit**. The default difficulty is Beginner.
 
 ---
 

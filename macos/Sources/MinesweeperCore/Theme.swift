@@ -32,11 +32,18 @@ public enum Theme {
 /// Pixel geometry derived from board dimensions. Assumes a flipped (top-left
 /// origin) coordinate space, matching `NSView.isFlipped == true`.
 public struct Layout {
+    /// Single source of truth for fixed geometry -- `nightmareDims` derives
+    /// its defaults from these so Nightmare's screen-filling math can never
+    /// drift out of sync with what `Layout`/`Renderer` actually draw.
+    public static let defaultCell: CGFloat = 30
+    public static let defaultBorder: CGFloat = 12
+    public static let defaultHeader: CGFloat = 52
+
     public let rows: Int
     public let cols: Int
-    public let cell: CGFloat = 30
-    public let border: CGFloat = 12
-    public let header: CGFloat = 52
+    public let cell: CGFloat = defaultCell
+    public let border: CGFloat = defaultBorder
+    public let header: CGFloat = defaultHeader
 
     public init(rows: Int, cols: Int) {
         self.rows = rows
@@ -73,5 +80,15 @@ public struct Layout {
         guard p.x >= gridX, p.x < gridX + CGFloat(cols) * cell,
               p.y >= gridY, p.y < gridY + CGFloat(rows) * cell else { return nil }
         return Position(Int((p.y - gridY) / cell), Int((p.x - gridX) / cell))
+    }
+
+    /// Maps a dirty rect (same flipped, top-left-origin space as `cellRect`)
+    /// to the row/col index ranges it overlaps, clamped to board bounds.
+    public func cellRange(in rect: NSRect) -> (rows: Range<Int>, cols: Range<Int>) {
+        let colStart = max(0, Int(((rect.minX - gridX) / cell).rounded(.down)))
+        let colEnd = min(cols, Int(((rect.maxX - gridX) / cell).rounded(.up)))
+        let rowStart = max(0, Int(((rect.minY - gridY) / cell).rounded(.down)))
+        let rowEnd = min(rows, Int(((rect.maxY - gridY) / cell).rounded(.up)))
+        return (rowStart ..< max(rowStart, rowEnd), colStart ..< max(colStart, colEnd))
     }
 }
