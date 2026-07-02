@@ -1,35 +1,51 @@
-# Minesweeper — dev tasks
-# Usage: `make` or `make run` to play; `make install` to set up; `make clean` to reset.
+# Native macOS Minesweeper (Swift + AppKit) — dev tasks
+# Build needs only the Command Line Tools (no Xcode).
 
-PYTHON := python3.14
-VENV   := .venv
-VENV_PY := $(VENV)/bin/python
-VENV_PIP := $(VENV)/bin/pip
+APP     := Minesweeper
+BUILD   := build
+BIN     := .build/release/$(APP)
+BUNDLE  := $(BUILD)/$(APP).app
+ICONSET := $(BUILD)/AppIcon.iconset
+ICNS    := $(BUILD)/AppIcon.icns
+PYICON  := icon.png             # standalone 256px PNG, kept as a general-purpose icon asset
 
 .DEFAULT_GOAL := run
-.PHONY: run install test clean
+.PHONY: run build test preview icon app clean
 
-## run: launch the game (sets up the venv on first run)
-run: $(VENV)
-	$(VENV_PY) mine1.py
+## run: build (debug) and launch the game window
+run:
+	swift run $(APP)
 
-## install: create the venv and install dependencies
-install: $(VENV)
+## build: release build of the app binary
+build:
+	swift build -c release --product $(APP)
 
-## test: run the logic test suite (installs pytest if needed)
-test: $(VENV)
-	$(VENV_PIP) install -q -r requirements-dev.txt
-	$(VENV_PY) -m pytest -q
+## test: run the headless logic test suite
+test:
+	swift run MinesweeperTests
 
-# Create the venv and install pinned deps. Re-runs only if .venv is missing
-# or requirements.txt is newer than the venv.
-$(VENV): requirements.txt
-	$(PYTHON) -m venv $(VENV)
-	$(VENV_PIP) install --upgrade pip
-	$(VENV_PIP) install -r requirements.txt
-	@touch $(VENV)
+## preview: dump mid-game + game-over PNGs for visual verification
+preview:
+	swift run MinesweeperPreview /tmp/msw_mid.png /tmp/msw_over.png
 
-## clean: remove the venv and Python caches
+## icon: generate AppIcon.icns (all sizes) + a standalone PNG
+icon:
+	rm -rf $(ICONSET)
+	swift run MinesweeperIcon $(ICONSET) $(PYICON) 256
+	iconutil -c icns -o $(ICNS) $(ICONSET)
+	@echo "Built $(ICNS) and $(PYICON)"
+
+## app: assemble + ad-hoc sign Minesweeper.app (with icon), then open it
+app: build icon
+	rm -rf $(BUNDLE)
+	mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
+	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP)
+	cp Info.plist $(BUNDLE)/Contents/Info.plist
+	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
+	codesign --force --sign - $(BUNDLE)
+	@echo "Built $(BUNDLE)"
+	open $(BUNDLE)
+
+## clean: remove build artifacts
 clean:
-	rm -rf $(VENV)
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	rm -rf .build $(BUILD)

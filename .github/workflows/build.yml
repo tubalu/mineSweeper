@@ -1,0 +1,24 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Debug build (all targets)
+        run: swift build
+
+      - name: Headless test suite
+        run: swift run MinesweeperTests
+
+      - name: Release build
+        run: swift build -c release --product Minesweeper

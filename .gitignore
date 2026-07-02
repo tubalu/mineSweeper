@@ -1,13 +1,6 @@
-# Virtual environment (also matches a worktree-local symlink)
-.venv
-
-# Python caches
-__pycache__/
-*.py[cod]
-
 # Swift / macOS app build artifacts
-macos/.build/
-macos/build/
+.build/
+build/
 
 # macOS Finder metadata
 .DS_Store

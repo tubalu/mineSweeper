@@ -25,7 +25,7 @@ clickable smiley reset button, and an elapsed-time counter.
 
 **In scope:** the full single-player game, mouse + keyboard input, the Win95
 visual style, restart, difficulty presets, a user-entered Custom difficulty
-(§6), and a resizable window frame (§6) on the macOS/Swift build.
+(§6), and a resizable window frame (§6).
 
 **Out of scope (do NOT implement):** networking, accounts, high-score
 persistence, sound, animations beyond the button press effect, themes/skins,
@@ -182,7 +182,7 @@ window to fit):
 | Nightmare | screen-derived | ~20.6% density |
 | Custom | 8–30 × 8–24, user-entered | user-entered, ≤ min(999, (w−1)(h−1)) |
 
-**Nightmare** (macOS/Swift build only) enters native fullscreen and sizes the
+**Nightmare** enters native fullscreen and sizes the
 board to fill the active display at the same fixed cell size as every other
 preset (cells are never scaled — the grid grows instead). Dimensions are
 computed from the screen size at selection time: `cols = (screenWidth −
@@ -191,7 +191,7 @@ computed from the screen size at selection time: `cols = (screenWidth −
 Exiting fullscreen (Esc or the window's fullscreen control) returns to the
 difficulty that was active before Nightmare was selected.
 
-**Custom** (macOS/Swift build only) prompts for width, height, and mine
+**Custom** prompts for width, height, and mine
 count. Width/height must each fall within 8–30 (width) and 8–24 (height);
 mine count must be between 1 and `min(999, (width−1)·(height−1))` — the
 `(width−1)(height−1)` term reserves a safe first click, and 999 is the LED
@@ -199,7 +199,7 @@ counter's hard cap. Invalid input is rejected with the specific bound
 violated (not a generic error), and the input dialog stays open for
 correction. Selecting Custom starts a fresh game, like any preset.
 
-**Resizable window** (macOS/Swift build only): the window frame can be
+**Resizable window**: the window frame can be
 drag-resized like any native app, for every difficulty except Nightmare
 (which is fullscreen-only and unaffected). Resizing snaps to whole cells at
 the same fixed cell size as every preset — the grid regrows or shrinks in
