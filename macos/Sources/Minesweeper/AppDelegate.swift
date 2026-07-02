@@ -133,9 +133,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let contentSize = window.contentRect(forFrameRect: window.frame).size
         let fit = fitCells(availableWidth: Double(contentSize.width), availableHeight: Double(contentSize.height))
         guard fit.rows > 0, fit.cols > 0 else { return }
+        // Also the re-entrancy guard: `setContentSize` below fires another
+        // `windowDidResize`, which calls back into this method -- that second
+        // call sees a matching row/col count and returns here as a no-op.
         if fit.rows == boardView.board.rows, fit.cols == boardView.board.cols { return }
-        let mineCeiling = max(0, (fit.cols - 1) * (fit.rows - 1))
-        let mines = min(boardView.board.mineCount, mineCeiling)
+        let mines = min(boardView.board.mineCount, safeMineCeiling(rows: fit.rows, cols: fit.cols))
         boardView = BoardView(board: Board(rows: fit.rows, cols: fit.cols, mineCount: mines))
         window.contentView = boardView
         window.makeFirstResponder(boardView)
@@ -178,9 +180,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// board-rebuild handling as the existing presets.
     @objc private func showCustomDialog() {
         guard !fullScreenTransitionInProgress else { return }
-        var width = boardView.board.cols
-        var height = boardView.board.rows
-        var mines = boardView.board.mineCount
+        // Clamp the prefill to Custom's own bounds -- if Nightmare is active
+        // its board can be far larger than 30x24, which would otherwise
+        // guarantee the very first "OK" is rejected on an unedited field.
+        var width = min(boardView.board.cols, 30)
+        var height = min(boardView.board.rows, 24)
+        var mines = min(boardView.board.mineCount, safeMineCeiling(rows: height, cols: width))
 
         while true {
             let alert = NSAlert()
@@ -219,6 +224,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let field = NSTextField(frame: NSRect(x: 64, y: y, width: 100, height: 20))
         field.integerValue = value
+        // No Auto Layout ties this field to `labelField`, so VoiceOver can't
+        // infer the field's name from on-screen proximity -- set it explicitly.
+        field.setAccessibilityLabel(label.trimmingCharacters(in: CharacterSet(charactersIn: ":")))
         container.addSubview(field)
         return field
     }
@@ -228,12 +236,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.alertStyle = .warning
         alert.messageText = "Invalid Custom Game"
         switch error {
-        case .widthOutOfBounds(let min, let max):
-            alert.informativeText = "Width must be between \(min) and \(max)."
-        case .heightOutOfBounds(let min, let max):
-            alert.informativeText = "Height must be between \(min) and \(max)."
-        case .mineCountOutOfBounds(let min, let max):
-            alert.informativeText = "Mines must be between \(min) and \(max)."
+        case .widthOutOfBounds(let lo, let hi):
+            alert.informativeText = "Width must be between \(lo) and \(hi)."
+        case .heightOutOfBounds(let lo, let hi):
+            alert.informativeText = "Height must be between \(lo) and \(hi)."
+        case .mineCountOutOfBounds(let lo, let hi):
+            alert.informativeText = "Mines must be between \(lo) and \(hi)."
         }
         alert.addButton(withTitle: "OK")
         alert.runModal()
