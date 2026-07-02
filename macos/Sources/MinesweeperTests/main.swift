@@ -220,6 +220,7 @@ runLayoutCellRangeTests()
 runCustomDifficultyResolveTests()
 runCustomDimsValidationTests()
 runFitCellsTests()
+runDensityScaledMinesTests()
 
 print(failures == 0 ? "\nAll tests passed" : "\n\(failures) test(s) FAILED")
 exit(failures == 0 ? 0 : 1)

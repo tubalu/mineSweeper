@@ -205,11 +205,13 @@ drag-resized like any native app, for every difficulty except Nightmare
 the same fixed cell size as every preset — the grid regrows or shrinks in
 cell count, cells are never stretched, and no partial cell is ever shown. The
 window cannot be dragged smaller than an 8×8 board plus chrome. Resizing
-keeps the current mine count fixed unless the new board is too small to
-safely hold it, in which case mines are clamped down to the largest count
-that still satisfies the `(cols−1)(rows−1)` safe-first-click ceiling; resize
-never changes which difficulty/preset is active. Resizing starts a fresh
-game, like any preset switch — in-progress board state is not preserved
+recomputes mine count from the mine density (mines ÷ cells) of whichever
+difficulty was last explicitly chosen, clamped to the `(cols−1)(rows−1)`
+safe-first-click ceiling — a bigger board gets proportionally more mines and
+a smaller one proportionally fewer, so relative difficulty stays roughly
+constant instead of diluting toward near-zero density on a large window;
+resize never changes which difficulty/preset is active. Resizing starts a
+fresh game, like any preset switch — in-progress board state is not preserved
 across a resize.
 
 If the platform has a native menu/command system, expose: **New Game**, the

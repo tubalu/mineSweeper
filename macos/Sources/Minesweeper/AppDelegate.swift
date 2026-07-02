@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var difficulty: Difficulty = .beginner
     private var preNightmareDifficulty: Difficulty = .beginner
     private var pendingDifficulty: Difficulty?
+    /// Mine density (mines / (rows*cols)) of the board as last explicitly
+    /// chosen (preset, Nightmare, or Custom). Interactive resize recomputes
+    /// mine count from this density rather than the board's current mine
+    /// count, so relative difficulty stays roughly constant as the board
+    /// grows/shrinks instead of diluting/concentrating toward the fixed
+    /// count of whatever difficulty was last selected.
+    private var baseDensity: Double = 0
     /// True from the moment `toggleFullScreen` is invoked until the matching
     /// enter/exit notification fires. `difficulty` only updates once that
     /// notification lands, so without this guard a preset selection made
@@ -42,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func loadBoard(_ d: Difficulty, screenSize: CGSize? = nil) {
         difficulty = d
         let dims = d.resolve(screenSize: screenSize ?? .zero)
+        let cellCount = dims.rows * dims.cols
+        baseDensity = cellCount > 0 ? Double(dims.mines) / Double(cellCount) : 0
         boardView = BoardView(board: Board(rows: dims.rows, cols: dims.cols, mineCount: dims.mines))
         window.contentView = boardView
         // `toggleFullScreen` alone does not resize window content to the
@@ -123,11 +132,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Rebuilds the board to fit the window's current content size, at the
     /// fixed cell size (cells regrow/shrink in count, never stretch). Mine
-    /// count stays exactly what it was UNLESS the new board is too small to
-    /// safely hold it (its (cols-1)*(rows-1) safe-first-click ceiling would
-    /// be exceeded), in which case mines are clamped down to that ceiling --
-    /// resize must never produce an invalid board, even at the cost of
-    /// reducing mines in an extreme shrink.
+    /// count is recomputed from `baseDensity` -- the density of whatever
+    /// difficulty was last explicitly chosen -- clamped to the safe
+    /// first-click ceiling, so a bigger board gets proportionally more mines
+    /// (and a smaller one proportionally fewer) instead of leaving the
+    /// absolute mine count fixed, which would dilute an easy preset into
+    /// near-zero density across a large window.
     private func rebuildBoardForCurrentWindowSize() {
         guard !fullScreenTransitionInProgress, difficulty != .nightmare else { return }
         let contentSize = window.contentRect(forFrameRect: window.frame).size
@@ -137,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // `windowDidResize`, which calls back into this method -- that second
         // call sees a matching row/col count and returns here as a no-op.
         if fit.rows == boardView.board.rows, fit.cols == boardView.board.cols { return }
-        let mines = min(boardView.board.mineCount, safeMineCeiling(rows: fit.rows, cols: fit.cols))
+        let mines = densityScaledMines(rows: fit.rows, cols: fit.cols, density: baseDensity)
         boardView = BoardView(board: Board(rows: fit.rows, cols: fit.cols, mineCount: mines))
         window.contentView = boardView
         window.makeFirstResponder(boardView)

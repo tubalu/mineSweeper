@@ -41,3 +41,16 @@ public func nightmareDims(screenWidth: Double, screenHeight: Double,
     let mines = min(maxMines, max(0, rawMines))
     return BoardDims(rows: fit.rows, cols: fit.cols, mines: mines)
 }
+
+/// Mine count re-scaled to a board's mine density (mines / (rows*cols)),
+/// clamped to the safe-first-click ceiling and to non-negative. This is the
+/// same density-preserving math `nightmareDims` uses for its own screen-fit
+/// sizing, generalized so interactive window-resize can keep a board's
+/// relative difficulty roughly constant as its cell count changes -- leaving
+/// mine count fixed while the board grows would otherwise dilute an easy
+/// board across a huge grid (near-zero effective density), and leaving it
+/// fixed while the board shrinks risks exceeding the safe ceiling.
+public func densityScaledMines(rows: Int, cols: Int, density: Double, maxMines: Int = 999) -> Int {
+    let raw = Int((density * Double(rows * cols)).rounded())
+    return min(safeMineCeiling(rows: rows, cols: cols, maxMines: maxMines), max(0, raw))
+}
