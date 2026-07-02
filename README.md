@@ -60,10 +60,17 @@ make test
 - **Game logic** (board state, reveal/cascade/flag/chord/win-loss) separated from UI rendering, so it's testable headlessly with no AppKit dependency
 - **Test coverage:** deterministic headless assertion suite covering the §9 logic cases in [SPEC.md](SPEC.md)
 
+## CI / Downloads
+
+Every push to `main` runs [`.github/workflows/build.yml`](.github/workflows/build.yml) on `macos-latest`: debug build, headless test suite, release build, then `make bundle` assembles and ad-hoc signs `Minesweeper.app`.
+
+- **Every push:** the run uploads `Minesweeper-macOS` as a workflow artifact — download it from the run's Summary page under **Artifacts** (Actions tab).
+- **Tagged release (`git tag vX.Y.Z && git push --tags`):** the same build is zipped and published as a [GitHub Release](../../releases) with a permanent download link.
+
 ## Project Structure
 
 ```
-├── Makefile                          # Build tasks (run, build, app, icon, test, clean)
+├── Makefile                          # Build tasks (run, build, bundle, app, icon, test, clean)
 ├── Package.swift                     # Swift package manifest
 ├── Info.plist                        # Bundle metadata (CFBundleIconFile, etc.)
 ├── build/                            # Ephemeral output dir (iconset, icns, app bundle)

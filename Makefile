@@ -10,7 +10,7 @@ ICNS    := $(BUILD)/AppIcon.icns
 PYICON  := icon.png             # standalone 256px PNG, kept as a general-purpose icon asset
 
 .DEFAULT_GOAL := run
-.PHONY: run build test preview icon app clean
+.PHONY: run build test preview icon bundle app clean
 
 ## run: build (debug) and launch the game window
 run:
@@ -35,8 +35,8 @@ icon:
 	iconutil -c icns -o $(ICNS) $(ICONSET)
 	@echo "Built $(ICNS) and $(PYICON)"
 
-## app: assemble + ad-hoc sign Minesweeper.app (with icon), then open it
-app: build icon
+## bundle: assemble + ad-hoc sign Minesweeper.app (with icon)
+bundle: build icon
 	rm -rf $(BUNDLE)
 	mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
 	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP)
@@ -44,6 +44,9 @@ app: build icon
 	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
 	codesign --force --sign - $(BUNDLE)
 	@echo "Built $(BUNDLE)"
+
+## app: bundle, then open it
+app: bundle
 	open $(BUNDLE)
 
 ## clean: remove build artifacts
