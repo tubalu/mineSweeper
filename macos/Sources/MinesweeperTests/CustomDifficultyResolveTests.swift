@@ -4,16 +4,14 @@ import MinesweeperCore
 // ---------------------------------------------------------------------------
 // Difficulty.custom(BoardDims) case
 // ---------------------------------------------------------------------------
-// `Difficulty` (macos/Sources/MinesweeperCore/Difficulty.swift) currently
-// only has beginner/intermediate/expert/nightmare cases. Per the approved
-// plan (docs/research/resizable-window-and-difficulty.md), it must gain a
+// `Difficulty` (macos/Sources/MinesweeperCore/Difficulty.swift) has a
 // `.custom(BoardDims)` case carrying an explicit, user-supplied `BoardDims`.
-// `resolve(screenSize:)` must return that `BoardDims` unchanged, exactly
+// `resolve(screenSize:)` returns that `BoardDims` unchanged, exactly
 // mirroring how the three static presets already ignore `screenSize` in
 // DifficultyResolveTests.swift -- `.custom`'s dims come from the caller, not
-// from screen geometry, so screenSize must have zero effect on the result.
+// from screen geometry, so screenSize has zero effect on the result.
 //
-// Expected contract:
+// Public contract:
 //
 //   public enum Difficulty { case beginner, intermediate, expert, nightmare
 //     case custom(BoardDims)

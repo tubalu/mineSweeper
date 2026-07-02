@@ -7,10 +7,9 @@ import MinesweeperCore
 // A generalized, pure "how many fixed-size cells fit in the available
 // space" function, extracted from nightmareDims's existing floor/clamp math
 // (macos/Sources/MinesweeperCore/NightmareSizing.swift) so that both
-// Nightmare-mode sizing and interactive window resize (per the approved
-// plan, docs/research/resizable-window-and-difficulty.md) can share one
-// function. Does not exist yet in MinesweeperCore. Written against the
-// expected public signature:
+// Nightmare-mode sizing and interactive window resize (see
+// docs/research/resizable-window-and-difficulty.md) share one function.
+// Implemented in MinesweeperCore with the public signature:
 //
 //   public func fitCells(availableWidth: Double, availableHeight: Double,
 //                         cell: Double = Double(Layout.defaultCell),

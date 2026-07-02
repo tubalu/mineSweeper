@@ -5,9 +5,9 @@ import MinesweeperCore
 // validateCustomDims(width:height:mines:minSide:maxWidth:maxHeight:maxMines:)
 // ---------------------------------------------------------------------------
 // Pure, testable validation for the Custom difficulty dialog (see
-// docs/research/resizable-window-and-difficulty.md). Does not exist yet in
-// MinesweeperCore -- this file is written against the expected public
-// signature:
+// docs/research/resizable-window-and-difficulty.md). Implemented in
+// MinesweeperCore (Sources/MinesweeperCore/CustomDifficulty.swift) with the
+// public signature:
 //
 //   public enum CustomDimsError: Error, Equatable {
 //     case widthOutOfBounds(min: Int, max: Int)
