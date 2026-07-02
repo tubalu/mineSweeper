@@ -48,8 +48,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let dims = d.resolve(screenSize: screenSize ?? .zero)
         boardView = BoardView(board: Board(rows: dims.rows, cols: dims.cols, mineCount: dims.mines))
         window.contentView = boardView
-        if d != .nightmare {
-            window.setContentSize(NSSize(width: boardView.layout.width, height: boardView.layout.height))
+        // `toggleFullScreen` alone does not resize window content to the
+        // screen -- nightmareDims sizes the board to (screen - border/header),
+        // so setContentSize already yields ~screen-sized content; position it
+        // at the fullscreen space's origin instead of centering a windowed
+        // preset.
+        window.setContentSize(NSSize(width: boardView.layout.width, height: boardView.layout.height))
+        if d == .nightmare, let origin = window.screen?.frame.origin {
+            window.setFrameOrigin(origin)
+        } else {
             window.center()
         }
         window.makeFirstResponder(boardView)
