@@ -32,6 +32,10 @@ public struct Board {
     public private(set) var win: Bool = false
     public private(set) var detonated: Position?
 
+    /// Mines are deferred until the first `reveal` (first-click safety) unless
+    /// placed deterministically via `setMines`.
+    private var minesPlaced = false
+
     public init(rows: Int, cols: Int, mineCount: Int) {
         self.rows = rows
         self.cols = cols
@@ -55,11 +59,11 @@ public struct Board {
         gameOver = false
         win = false
         detonated = nil
-        placeRandomMines()
-        computeCounts()
+        minesPlaced = false
     }
 
-    /// Deterministically place mines (used by tests).
+    /// Deterministically place mines (used by tests). Placement is immediate
+    /// and not subject to first-click exclusion.
     public mutating func setMines(_ coords: [Position]) {
         isMine = Self.grid(rows, cols, false)
         for p in coords { isMine[p.row][p.col] = true }
@@ -69,16 +73,27 @@ public struct Board {
         gameOver = false
         win = false
         detonated = nil
+        minesPlaced = true
         computeCounts()
     }
 
-    private mutating func placeRandomMines() {
-        let target = min(mineCount, rows * cols)
+    /// Randomly places `mineCount` mines, excluding `excluded` cells (relocating
+    /// what would have landed there elsewhere so the total count is unchanged).
+    private mutating func placeRandomMines(excluding excluded: Set<Position>) {
+        let excludedIdx = Set(excluded.map { $0.row * cols + $0.col })
+        let available = (0 ..< rows * cols).filter { !excludedIdx.contains($0) }
+        let target = min(mineCount, available.count)
+        // Keep mineCount in sync with what's actually placed -- if the safe
+        // zone leaves fewer available cells than requested mines, mineCount
+        // (and therefore minesRemaining()) must reflect the placed total,
+        // not the original request.
+        mineCount = target
         var chosen = Set<Int>()
         while chosen.count < target {
-            chosen.insert(Int.random(in: 0 ..< rows * cols))
+            chosen.insert(available[Int.random(in: 0 ..< available.count)])
         }
         for idx in chosen { isMine[idx / cols][idx % cols] = true }
+        minesPlaced = true
     }
 
     public func neighbors(_ r: Int, _ c: Int) -> [Position] {
@@ -106,6 +121,12 @@ public struct Board {
 
     public mutating func reveal(_ r: Int, _ c: Int) {
         guard !gameOver, state[r][c] == .covered else { return }
+        if !minesPlaced {
+            var safeZone = Set(neighbors(r, c))
+            safeZone.insert(Position(r, c))
+            placeRandomMines(excluding: safeZone)
+            computeCounts()
+        }
         if isMine[r][c] {
             state[r][c] = .revealed
             detonated = Position(r, c)

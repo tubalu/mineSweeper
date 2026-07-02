@@ -7,7 +7,8 @@ import MinesweeperCore
 func render(_ board: Board, layout: Layout, seconds: Int, to path: String) {
     let image = NSImage(size: NSSize(width: layout.width, height: layout.height))
     image.lockFocusFlipped(true)
-    Renderer.draw(board: board, layout: layout, pressed: [], seconds: seconds)
+    let fullRect = NSRect(x: 0, y: 0, width: layout.width, height: layout.height)
+    Renderer.draw(board: board, layout: layout, pressed: [], seconds: seconds, dirtyRect: fullRect)
     image.unlockFocus()
     guard let tiff = image.tiffRepresentation,
           let rep = NSBitmapImageRep(data: tiff),

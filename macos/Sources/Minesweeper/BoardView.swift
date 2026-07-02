@@ -40,7 +40,8 @@ final class BoardView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        Renderer.draw(board: board, layout: layout, pressed: pressedPreview(), seconds: seconds)
+        Renderer.draw(board: board, layout: layout, pressed: pressedPreview(),
+                      seconds: seconds, dirtyRect: dirtyRect)
     }
 
     private func pressedPreview() -> Set<Position> {

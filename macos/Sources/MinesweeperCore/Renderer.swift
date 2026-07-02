@@ -4,12 +4,15 @@ import AppKit
 /// which must be flipped (top-left origin) so the geometry in `Layout` matches.
 public enum Renderer {
     public static func draw(board: Board, layout: Layout,
-                            pressed: Set<Position>, seconds: Int) {
+                            pressed: Set<Position>, seconds: Int, dirtyRect: NSRect) {
         Theme.face.setFill()
-        NSBezierPath(rect: NSRect(x: 0, y: 0, width: layout.width, height: layout.height)).fill()
-        drawHeader(board: board, layout: layout, seconds: seconds)
-        for r in 0 ..< board.rows {
-            for c in 0 ..< board.cols {
+        NSBezierPath(rect: dirtyRect).fill()
+        if dirtyRect.intersects(layout.headerRect) {
+            drawHeader(board: board, layout: layout, seconds: seconds)
+        }
+        let range = layout.cellRange(in: dirtyRect)
+        for r in range.rows {
+            for c in range.cols {
                 drawCell(board: board, layout: layout, r: r, c: c,
                          pressed: pressed.contains(Position(r, c)))
             }
