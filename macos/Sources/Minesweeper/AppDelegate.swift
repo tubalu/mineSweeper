@@ -1,7 +1,7 @@
 import AppKit
 import MinesweeperCore
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
     private var boardView: BoardView!
     private var difficulty: Difficulty = .beginner
@@ -17,25 +17,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         window = NSWindow(contentRect: .zero,
-                          styleMask: [.titled, .closable, .miniaturizable],
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
         window.title = "Minesweeper"
+        window.delegate = self
+        // The smallest playable board (8x8) sets the floor; AppKit clamps
+        // drags to this automatically so windowWillResize never has to.
+        let minLayout = Layout(rows: 8, cols: 8)
+        window.contentMinSize = NSSize(width: minLayout.width, height: minLayout.height)
         window.collectionBehavior.insert(.fullScreenPrimary)
-        // Will-notifications fire the instant a transition starts, regardless
-        // of trigger (our menu, the native green button, or ^⌘F) -- these set
-        // the in-progress guard for every path, not just our own selectors.
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowWillEnterFullScreen(_:)),
-            name: NSWindow.willEnterFullScreenNotification, object: window)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowWillExitFullScreen(_:)),
-            name: NSWindow.willExitFullScreenNotification, object: window)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowDidEnterFullScreen(_:)),
-            name: NSWindow.didEnterFullScreenNotification, object: window)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowDidExitFullScreen(_:)),
-            name: NSWindow.didExitFullScreenNotification, object: window)
+        // windowWillEnterFullScreen/windowDidEnterFullScreen/etc. below are
+        // NSWindowDelegate protocol methods -- now that `window.delegate =
+        // self` is set, AppKit calls them directly for every transition
+        // (menu, native green button, or ^⌘F). No manual
+        // NotificationCenter.addObserver is needed (and adding one would
+        // double-fire alongside the automatic delegate dispatch).
         loadBoard(.beginner)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -87,8 +83,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.toggleFullScreen(nil)
     }
 
-    @objc private func windowWillEnterFullScreen(_ note: Notification) { fullScreenTransitionInProgress = true }
-    @objc private func windowWillExitFullScreen(_ note: Notification) { fullScreenTransitionInProgress = true }
+    @objc func windowWillEnterFullScreen(_ note: Notification) { fullScreenTransitionInProgress = true }
+    @objc func windowWillExitFullScreen(_ note: Notification) { fullScreenTransitionInProgress = true }
+
+    // MARK: - interactive window resize
+    //
+    // Nightmare is fullscreen-only and already owns its own sizing via the
+    // fullscreen notifications above, so all of this is skipped whenever
+    // `difficulty == .nightmare` or a fullscreen transition is in flight --
+    // resize must never fight Nightmare's screen-driven layout.
+    //
+    // `windowWillResize` snaps the live-drag frame to whole cells on every
+    // frame (cheap: pure geometry, no Board allocation). The board itself is
+    // only rebuilt once, at the end of the gesture (`windowDidEndLiveResize`)
+    // or for a non-live resize (`windowDidResize` while NOT `inLiveResize`,
+    // e.g. the titlebar zoom button) -- rebuilding on every intermediate
+    // `windowDidResize` frame during a drag would reset the board (and its
+    // timer) dozens of times per gesture instead of once.
+
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        guard !fullScreenTransitionInProgress, difficulty != .nightmare else { return frameSize }
+        let candidateFrame = NSRect(origin: sender.frame.origin, size: frameSize)
+        let contentSize = sender.contentRect(forFrameRect: candidateFrame).size
+        let fit = fitCells(availableWidth: Double(contentSize.width), availableHeight: Double(contentSize.height))
+        guard fit.rows > 0, fit.cols > 0 else { return frameSize }
+        let snapped = Layout(rows: fit.rows, cols: fit.cols)
+        let snappedContent = NSRect(origin: .zero, size: NSSize(width: snapped.width, height: snapped.height))
+        return sender.frameRect(forContentRect: snappedContent).size
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard !window.inLiveResize else { return }
+        rebuildBoardForCurrentWindowSize()
+    }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        rebuildBoardForCurrentWindowSize()
+    }
+
+    /// Rebuilds the board to fit the window's current content size, at the
+    /// fixed cell size (cells regrow/shrink in count, never stretch). Mine
+    /// count stays exactly what it was UNLESS the new board is too small to
+    /// safely hold it (its (cols-1)*(rows-1) safe-first-click ceiling would
+    /// be exceeded), in which case mines are clamped down to that ceiling --
+    /// resize must never produce an invalid board, even at the cost of
+    /// reducing mines in an extreme shrink.
+    private func rebuildBoardForCurrentWindowSize() {
+        guard !fullScreenTransitionInProgress, difficulty != .nightmare else { return }
+        let contentSize = window.contentRect(forFrameRect: window.frame).size
+        let fit = fitCells(availableWidth: Double(contentSize.width), availableHeight: Double(contentSize.height))
+        guard fit.rows > 0, fit.cols > 0 else { return }
+        if fit.rows == boardView.board.rows, fit.cols == boardView.board.cols { return }
+        let mineCeiling = max(0, (fit.cols - 1) * (fit.rows - 1))
+        let mines = min(boardView.board.mineCount, mineCeiling)
+        boardView = BoardView(board: Board(rows: fit.rows, cols: fit.cols, mineCount: mines))
+        window.contentView = boardView
+        window.makeFirstResponder(boardView)
+        window.setContentSize(NSSize(width: boardView.layout.width, height: boardView.layout.height))
+    }
 
     /// Fires once the async fullscreen transition completes -- only then is
     /// `window.screen`'s frame final, so board construction is deferred here
@@ -98,7 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// difficulty, not just via `setNightmare()`, so this must capture
     /// whatever was active BEFORE this notification -- not assume the menu
     /// action was the only path in.
-    @objc private func windowDidEnterFullScreen(_ note: Notification) {
+    @objc func windowDidEnterFullScreen(_ note: Notification) {
         fullScreenTransitionInProgress = false
         if difficulty != .nightmare { preNightmareDifficulty = difficulty }
         let size = window.screen?.frame.size ?? window.frame.size
@@ -108,11 +160,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Fires on ANY exit from fullscreen -- Esc, the green button, or our own
     /// programmatic `toggleFullScreen` call from `selectPreset` -- so exit
     /// behavior is unconditional and idempotent regardless of cause.
-    @objc private func windowDidExitFullScreen(_ note: Notification) {
+    @objc func windowDidExitFullScreen(_ note: Notification) {
         fullScreenTransitionInProgress = false
         let target = pendingDifficulty ?? preNightmareDifficulty
         pendingDifficulty = nil
         loadBoard(target)
+    }
+
+    // MARK: - custom difficulty dialog
+
+    /// Presents a modal width/height/mines form (an `NSAlert` accessory view,
+    /// matching this codebase's existing no-Auto-Layout / manual-frame
+    /// style). Re-prompts with the entered (invalid) values on failure so
+    /// the specific violated bound can be shown and fixed in place, rather
+    /// than a generic error or a silent clamp/crash. On success, routes
+    /// through `selectPreset` so Custom gets identical Nightmare-exit and
+    /// board-rebuild handling as the existing presets.
+    @objc private func showCustomDialog() {
+        guard !fullScreenTransitionInProgress else { return }
+        var width = boardView.board.cols
+        var height = boardView.board.rows
+        var mines = boardView.board.mineCount
+
+        while true {
+            let alert = NSAlert()
+            alert.messageText = "Custom Game"
+            alert.informativeText = "Enter board width, height, and mine count."
+            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: "Cancel")
+
+            let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 78))
+            let widthField = Self.labeledIntField(label: "Width:", value: width, y: 52, in: accessory)
+            let heightField = Self.labeledIntField(label: "Height:", value: height, y: 26, in: accessory)
+            let minesField = Self.labeledIntField(label: "Mines:", value: mines, y: 0, in: accessory)
+            alert.accessoryView = accessory
+            alert.window.initialFirstResponder = widthField
+
+            guard alert.runModal() == .alertFirstButtonReturn else { return }  // Cancel
+
+            width = widthField.integerValue
+            height = heightField.integerValue
+            mines = minesField.integerValue
+
+            switch validateCustomDims(width: width, height: height, mines: mines) {
+            case .success(let dims):
+                selectPreset(.custom(dims))
+                return
+            case .failure(let error):
+                Self.showValidationError(error)
+            }
+        }
+    }
+
+    private static func labeledIntField(label: String, value: Int, y: CGFloat, in container: NSView) -> NSTextField {
+        let labelField = NSTextField(labelWithString: label)
+        labelField.frame = NSRect(x: 0, y: y, width: 60, height: 20)
+        container.addSubview(labelField)
+
+        let field = NSTextField(frame: NSRect(x: 64, y: y, width: 100, height: 20))
+        field.integerValue = value
+        container.addSubview(field)
+        return field
+    }
+
+    private static func showValidationError(_ error: CustomDimsError) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Invalid Custom Game"
+        switch error {
+        case .widthOutOfBounds(let min, let max):
+            alert.informativeText = "Width must be between \(min) and \(max)."
+        case .heightOutOfBounds(let min, let max):
+            alert.informativeText = "Height must be between \(min) and \(max)."
+        case .mineCountOutOfBounds(let min, let max):
+            alert.informativeText = "Mines must be between \(min) and \(max)."
+        }
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private func buildMenu() {
@@ -146,6 +270,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self
             diffMenu.addItem(item)
         }
+        diffMenu.addItem(.separator())
+        let customItem = NSMenuItem(title: "Custom…", action: #selector(showCustomDialog), keyEquivalent: "5")
+        customItem.target = self
+        diffMenu.addItem(customItem)
         let diffItem = NSMenuItem(title: "Difficulty", action: nil, keyEquivalent: "")
         diffItem.submenu = diffMenu
         gameMenu.addItem(diffItem)
