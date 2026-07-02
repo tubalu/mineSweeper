@@ -24,12 +24,14 @@ feel: a grid of chunky 3-D gray buttons, a status header with a mine counter, a
 clickable smiley reset button, and an elapsed-time counter.
 
 **In scope:** the full single-player game, mouse + keyboard input, the Win95
-visual style, restart, and difficulty presets.
+visual style, restart, difficulty presets, a user-entered Custom difficulty
+(§6), and a resizable window frame (§6) on the macOS/Swift build.
 
 **Out of scope (do NOT implement):** networking, accounts, high-score
-persistence, sound, animations beyond the button press effect, user-entered
-custom board dimensions UI, themes/skins. (Nightmare's screen-derived sizing,
-§6, is not user-entered and is in scope.)
+persistence, sound, animations beyond the button press effect, themes/skins,
+persisting a user's last-used custom dimensions across launches, and any
+mid-game resize that preserves in-progress board state (resize is
+confirm/restart, like switching difficulty).
 
 ---
 
@@ -178,6 +180,7 @@ window to fit):
 | Intermediate | 16 × 16 | 40 |
 | Expert | 16 × 30 | 99 |
 | Nightmare | screen-derived | ~20.6% density |
+| Custom | 8–30 × 8–24, user-entered | user-entered, ≤ min(999, (w−1)(h−1)) |
 
 **Nightmare** (macOS/Swift build only) enters native fullscreen and sizes the
 board to fill the active display at the same fixed cell size as every other
@@ -188,8 +191,30 @@ computed from the screen size at selection time: `cols = (screenWidth −
 Exiting fullscreen (Esc or the window's fullscreen control) returns to the
 difficulty that was active before Nightmare was selected.
 
+**Custom** (macOS/Swift build only) prompts for width, height, and mine
+count. Width/height must each fall within 8–30 (width) and 8–24 (height);
+mine count must be between 1 and `min(999, (width−1)·(height−1))` — the
+`(width−1)(height−1)` term reserves a safe first click, and 999 is the LED
+counter's hard cap. Invalid input is rejected with the specific bound
+violated (not a generic error), and the input dialog stays open for
+correction. Selecting Custom starts a fresh game, like any preset.
+
+**Resizable window** (macOS/Swift build only): the window frame can be
+drag-resized like any native app, for every difficulty except Nightmare
+(which is fullscreen-only and unaffected). Resizing snaps to whole cells at
+the same fixed cell size as every preset — the grid regrows or shrinks in
+cell count, cells are never stretched, and no partial cell is ever shown. The
+window cannot be dragged smaller than an 8×8 board plus chrome. Resizing
+keeps the current mine count fixed unless the new board is too small to
+safely hold it, in which case mines are clamped down to the largest count
+that still satisfies the `(cols−1)(rows−1)` safe-first-click ceiling; resize
+never changes which difficulty/preset is active. Resizing starts a fresh
+game, like any preset switch — in-progress board state is not preserved
+across a resize.
+
 If the platform has a native menu/command system, expose: **New Game**, the
-**Difficulty** presets, and **Quit**. The default difficulty is Beginner.
+**Difficulty** presets (including **Custom…**), and **Quit**. The default
+difficulty is Beginner.
 
 ---
 
