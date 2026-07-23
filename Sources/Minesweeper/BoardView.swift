@@ -17,11 +17,16 @@ final class BoardView: NSView {
     private var timer: Timer?
     private var timerRunning = false
     private var trackingArea: NSTrackingArea?
+    private let confetti = ConfettiOverlay(frame: .zero)
+    private var celebratedWin = false
 
     init(board: Board) {
         self.board = board
         self.layout = Layout(rows: board.rows, cols: board.cols)
         super.init(frame: NSRect(x: 0, y: 0, width: layout.width, height: layout.height))
+        confetti.frame = bounds
+        confetti.autoresizingMask = [.width, .height]
+        addSubview(confetti)
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -81,6 +86,7 @@ final class BoardView: NSView {
         }
         if !leftDown, !rightDown { chordArmed = false }
         needsDisplay = true
+        celebrateIfWon()
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -104,12 +110,14 @@ final class BoardView: NSView {
         }
         if !leftDown, !rightDown { chordArmed = false }
         needsDisplay = true
+        celebrateIfWon()
     }
 
     override func otherMouseDown(with event: NSEvent) {
         if let h = pos(event) { startTimer(); board.chord(h.row, h.col) }
         chordArmed = true
         needsDisplay = true
+        celebrateIfWon()
     }
 
     override func otherMouseUp(with event: NSEvent) {
@@ -137,7 +145,15 @@ final class BoardView: NSView {
         timerRunning = false
         timer?.invalidate()
         timer = nil
+        celebratedWin = false
+        confetti.stop()
         needsDisplay = true
+    }
+
+    private func celebrateIfWon() {
+        guard board.win, !celebratedWin else { return }
+        celebratedWin = true
+        confetti.burst()
     }
 
     private func startTimer() {
