@@ -18,7 +18,7 @@ final class BoardView: NSView {
     private var timerRunning = false
     private var trackingArea: NSTrackingArea?
     private let confetti = ConfettiOverlay(frame: .zero)
-    private var celebratedWin = false
+    private var gameResolved = false
 
     init(board: Board) {
         self.board = board
@@ -67,6 +67,9 @@ final class BoardView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        // During a win celebration, a click pops the balloon under it (if any)
+        // instead of touching the board.
+        if confetti.popBalloon(at: confetti.convert(p, from: self)) { return }
         if layout.smileyRect.contains(p) { newGame(); return }
         leftDown = true
         hover = layout.cellAt(p)
@@ -86,7 +89,7 @@ final class BoardView: NSView {
         }
         if !leftDown, !rightDown { chordArmed = false }
         needsDisplay = true
-        celebrateIfWon()
+        resolveGameEnd()
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -110,14 +113,14 @@ final class BoardView: NSView {
         }
         if !leftDown, !rightDown { chordArmed = false }
         needsDisplay = true
-        celebrateIfWon()
+        resolveGameEnd()
     }
 
     override func otherMouseDown(with event: NSEvent) {
         if let h = pos(event) { startTimer(); board.chord(h.row, h.col) }
         chordArmed = true
         needsDisplay = true
-        celebrateIfWon()
+        resolveGameEnd()
     }
 
     override func otherMouseUp(with event: NSEvent) {
@@ -145,15 +148,25 @@ final class BoardView: NSView {
         timerRunning = false
         timer?.invalidate()
         timer = nil
-        celebratedWin = false
+        gameResolved = false
         confetti.stop()
         needsDisplay = true
     }
 
-    private func celebrateIfWon() {
-        guard board.win, !celebratedWin else { return }
-        celebratedWin = true
-        confetti.burst()
+    /// Fire the end-of-game effect exactly once: confetti on a win, or a blast
+    /// centered on the detonated mine on a loss.
+    private func resolveGameEnd() {
+        guard board.gameOver, !gameResolved else { return }
+        gameResolved = true
+        if board.win {
+            confetti.burst()
+        } else if let mine = board.detonated {
+            let rect = layout.cellRect(mine.row, mine.col)
+            // BoardView is flipped (y grows down); the overlay's layer is
+            // bottom-origin (y grows up), so flip the center into layer space.
+            let origin = CGPoint(x: rect.midX, y: bounds.height - rect.midY)
+            confetti.explode(at: origin)
+        }
     }
 
     private func startTimer() {
